@@ -2,14 +2,14 @@
 # Analizando las Encuestas de Hogares 2019
 # ================================================
 
-# 1) Instalacion de paquetes 
+# 1) Instalación de paquetes 
 install.packages(c("tidyverse","psych","haven", "PerformanceAnalytics"))
 library(tidyverse)
 library(haven)
 library(psych)
 library(PerformanceAnalytics)
 
-# 2) Importacion de los datos (Encuesta de Hogares 2019 )
+# 2) Importación de los datos (Encuesta de Hogares 2019 )
 EH2019 <- read_sav("EH2019_Persona.sav")
 attach(EH2019) # Permite trabajar con los nombres de la varibales dentro del data frame 
 names(EH2019) # Nombres de la varibles dentro del data frame
@@ -38,8 +38,11 @@ Salario<-ylab
 Edu <- aestudio
 Edad <- s02a_03
 Horas<-tothrs
+E_civil<-s02a_10
 
-Data <- data.frame(Salario, Edu, Edad, Horas, Genero, depto)
+
+
+Data <- data.frame(Salario, Edu, Edad, Horas, Genero, E_civil)
 DF <- na.omit(Data) 
 attach(DF)
 DF
@@ -49,20 +52,16 @@ Horas_df<-DF$Horas
 Edad_df<-DF$Edad
 edu_df<-DF$Edu
 Genero_df<-DF$Genero
-depto_df<-DF$depto
+civil_df<-DF$E_civil
 
 #algoritmo del salario
 Ln_salario <-log(Salario_df)-log(Horas_df*4)
 describe(Salario)
 describe(Ln_salario)
 hist(Ln_salario)
-
-# 3) 
-## ggplot2 
-
 hist(Salario_df)
 
-## `ggplot2 'ejemplo de histograma:
+## "ggplot2 "ejemplo de histograma:
 install.packages("ggplot2")
 library(ggplot2)
 
@@ -72,10 +71,10 @@ ggplot(DF, aes(x = Salario_df)) +
 hist1 <- ggplot(DF, aes(x=Salario_df)) + geom_histogram() + 
   xlab("Salario Mensuales (Mes)") + 
   ylab("Frecuencia Absoluta") +
-  ggtitle("Distribucion del Salario, EH 2019")
+  ggtitle("Distribución del Salario, EH 2019")
 hist1
 
-# 4) Analisis de correlaciones
+# 4) Análisis de correlaciones
 
 Exp <- Edad_df-edu_df-6
 Exp2 <- Exp*Exp
@@ -84,18 +83,11 @@ plot(Ln_salario ~ Exp)
 plot(Ln_salario ~ Edad_df)
 cor.test(Ln_salario,Exp)
 
-Data1 <- data.frame(Ln_salario, Edad_df, edu_df, Exp, Exp2, Genero_df, depto_df,Salario_df)
+Data1 <- data.frame(Genero_df,civil_df,edu_df,Exp,Exp2)
 DF1 <- na.omit(Data1) 
 attach(DF1)
 DF1
 
-ggplot(DF1,
-       aes(y = Ln_salario, x = Exp)) +
-  geom_point()
-
-DF1$pred.Salario <- predict(lm(Ln_salario ~ Exp, data = DF1))
-p1 <- ggplot(DF1, aes(x = Exp, y = Ln_salario))
-p1 + geom_point() + geom_line(aes(y = pred.Salario)) + geom_smooth()
 
 # 5)Generar el modelo lineal multiple
 #RLM
@@ -103,90 +95,97 @@ m1 <- lm(DF1$Ln_salario ~ DF1$edu_df, DF1)
 summary(m1)
 
 
-m2 <- lm(DF1$Ln_salario ~ DF1$Exp+DF1$edu_df+DF1$Genero_df,DF1)
-summary(m1)
+MR<- lm(Ln_salario~Genero_df+civil_df+edu_df+Exp+Exp2,data=DF1)
+summary(MR)
 
-m3 <- lm(DF1$Ln_salario ~ DF1$Exp+DF1$Exp2+DF1$edu_df+DF1$Genero_df,DF1)
-summary(m3)
-#Condiciones para la regresión múltiple lineal
+#matriz de correlación R
+library(Hmisc)
+library(corrplot)
+library(PerformanceAnalytics)
 
-######## Modelos lineales generalizados ########
+R1<-cor(DF1)
+library(corrplot)
+corrplot(R1)
+#determinante de la matriz R
+R2<-cor(DF1[,1:5])
+det(R2)
+#indice de Condición de la matriz R
+autov<- eigen(R2)$`values`
+round(sqrt(autov[1]/autov[5]),3)
+
+#Correlaciones observadas entre pares de variables: 
+round(cor(DF1),5)  
+
+# 6)Análisis de componentes principales
+library(stats)
+PCA <- prcomp(DF1, scale = TRUE)
+summary(PCA)
+
+plot(PCA,type="l")
+biplot(PCA,scale=0)
+
+#Extraer dos componentes
+#Tomamos las 2 primeras componentes
+round(PCA$rotation[,1:2],4)
+
+library(factoextra)
+#Grafico de proporción de varianza explicada
+fviz_screeplot(PCA, addlabels = TRUE, ylim = c(0, 60))
+
+
+#Porcentaje de varianza total
+barplot(summary(PCA)$importance[2, ])
+#Realizar análisis regresión de la variable Ln_salario sobre PCA
+z1<-PCA$x[,1]
+z1
+z2<-PCA$x[,2]
+z2
+
+regcp<-lm(Ln_salario~z1+z2,data=DF1)
+regcp
+summary(regcp)
+
+#Factor de inflación de la varianza(VIF)
+library(car)
+vif(regcp)
+
+#transformación para obtener los coeficientes de regresión originales
+head((coefsCP<-regcp$coefficients[1:2] %*% t(PCA$rotation[,1:2])))
+
 install.packages("Metrics")
 library(Metrics) #error cuadratico
-install.packages("DescTools")
-library(DescTools) #
+# se estima el error de predicción mediante el Error Cuadrático Medio:
+ECMREG<-rmse(Ln_salario,predict(MR)) #error medio cuadrático para modelo MR
+ECMPC<-rmse(Ln_salario,predict(regcp)) #error medio cuadrático para modelo regcp
+
+ECM<- c(ECMREG,ECMPC)
+ECM
+plot(ECM,col=c("dark blue","dark red"),type="p",cex=1.5,
+     lwd=2,xlim=c(0.5,4.5),ylim=c(0.5,4.5),
+     xlab=" ",ylab="ECM")
+legend("topright", inset=.02, title="Modelo de regresión",
+       c("M\'ultiple","CP"), fill=c("dark blue","dark red"), horiz=TRUE,
+       cex=0.9)
 
 
-#construir un modelo lineal de regresion  múltiple 
-m3 <- lm(DF1$Ln_salario ~ DF1$Exp+DF1$Exp2+DF1$edu_df+DF1$Genero_df,DF1)
-summary(m3)
+#Estimacion de la varianza de ambos modelos
+varmod<-c(summary(MR)[[2]]^2, summary(regcp)[[2]]^2)
+plot(varmod,col=c("dark blue","dark red"),type="p",cex=1.5,
+     lwd=2, xlim=c(0.5,2.5), ylim=c(0.10,0.26),
+     xlab=" ",ylab="Estimación de la varianza")
+legend("bottomright", inset=.02, title="Modelo de regresión",
+       c("M\'ultiple","PCA"), fill=c("dark blue","dark red"),
+       horiz=TRUE, cex=0.9)
 
-plot(m3)
-
-#Modelo Lineal Generalizado con distribución de Poisson y función link Log
-
-m4<-glm(DF1$Ln_salario~DF1$Exp2+DF1$edu_df+DF1$Genero_df,family = poisson(link="log"))
-m4
-
-######################################
-
-#construir un modelo lineal de regresion  múltiple
-m3 <- lm(DF1$edu_df ~DF1$Genero_df,DF1)
-summary(m3)
-plot(m3)
-#Modelo Lineal Generalizado con distribución de Poisson y función link Log
-
-m4<-glm(DF1$edu_df ~DF1$Genero_df,family = poisson(link="log"))
-summary(m4)
-plot(m4)
-
-#####################################
-
-AIC(m3)
-AIC(m4)
-
-plot(DF1$edu_df~predict(m3)) #graficar predichos en funcion de obsrvados para modelo de regresion normal
-plot(DF1$edu_df~exp(predict(m4))) #graficar predichos en función  de observados para  modelo Poisson
-
-rmse(DF1$edu_df,predict(m3)) #error medio cuadrático para modelo3
-rmse(DF1$edu_df,exp(predict(m4))) #error medio cuadrático para modelo Poisson
-
-
-#el modelo Poisson con link log tiene mejor valor AIC, por lo tanto nos quedamos con este
-#ahora vamos a explorar este modelo
-
-
-#analisis de componentes principales
-install.packages("GPArotation")
-
-p1<-principal(DF1,nfactors = 5,rotate = "none")
-p1
-library(stats)
-
-pca_nci <- prcomp(DF1, scale = TRUE)
-pca_nci
-
-
-#Para obtener los autovalores
-pca_nci$sdev^2
-
-#Importance of components:
-summary(pca_nci)
-#Porcentaje de varianza total
-barplot(summary(pca_nci)$importance[2, ])
-
-#eleccion de componente 
-head(pca_nci$rotation)[, 1:3]
 
 # Presentando los resulatados de la regresiones
 install.packages("stargazer")
 library(stargazer)
 
-stargazer(m1, type="text")
-stargazer(m2, type="text")
-stargazer(m3, type="text")
-stargazer(m4, type="text")
+stargazer(MR, type="text")
+stargazer(regcp, type="text")
 
-stargazer(m1, m2, m3,m4 , type="text",
+
+stargazer(MR,regcp , type="text",
           title = "Resultados de las regresiones")
 
