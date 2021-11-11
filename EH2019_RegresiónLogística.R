@@ -1,6 +1,6 @@
-# ================================================
-# Analizando las Encuestas de Hogares 2019
-# ================================================
+ #================================================
+  # Analizando las Encuestas de Hogares 2019
+  # ================================================
 
 # 1) Instalacion de paquetes 
 install.packages(c("tidyverse","psych","haven", "PerformanceAnalytics"))
@@ -84,10 +84,14 @@ Exp2 <- Exp*Exp
 
 
 #Data frame
-Data1 <- data.frame(Tam_Empresa,Genero_df,Edad_df,Nivel_EDU,Exp,Ln_salario)
+Data1 <- data.frame(Tam_Empresa,Genero_df,Edad_df,Nivel_edu_df,Exp,Ln_salario)
 DF1 <- na.omit(Data1) 
 attach(DF1)
 DF1
+
+datos.entrenamiento<-DF1[1:10706,]
+datos.prueba<-DF1[10707:15295,]
+
 #analisis exploratorio
 
 #analisis univariado
@@ -111,32 +115,32 @@ prop.table(b,2)
 
 piepercent <- round(prop.table(table(Tam_Empresa))*100)
 pie(table(Tam_Empresa),
-    main="Distribuci�n de los Trabajadores de EH2019",
-    #t�tulo 
+    main="Distribución de los Trabajadores de EH2019",
+    #título 
     col=c("mistyrose","lightblue"), # damos color a los sectores
     labels=paste0(piepercent,"%")) 
-legend("topright", c("Trabajadores formales","Trabajadores informales"), cex=0.8, fill=c(2,4)) # a�adimos la leyenda al gr�fico
+legend("topright", c("Trabajadores formales","Trabajadores informales"), cex=0.8, fill=c(2,4)) # añadimos la leyenda al gráfico
 prop.table(Tam_Empresa)
 #################################
 #Trabajadores informales por genero
 
 piepercent <- round(w[,2]*100)
 pie(w[,2],
-    main="Distribuci�n de los ocupados por genero,Trabajadores formales por genero",
-    #t�tulo 
+    main="Distribución de los ocupados por genero,Trabajadores formales por genero",
+    #título 
     col=c("mistyrose","lightblue"), # damos color a los sectores
     labels=paste0(piepercent,"%")) 
-legend("topright", c("Mujer","Hombre"), cex=0.8, fill=c(2,4)) # a�adimos la leyenda al gr�fico
+legend("topright", c("Mujer","Hombre"), cex=0.8, fill=c(2,4)) # añadimos la leyenda al gráfico
 
 #Trabajadores formales por genero
 
 piepercent <- round(w[,1]*100)
 pie(w[,1],
-    main="Distribuci�n de los ocupados por genero,Trabajadores formales por genero",
-    #t�tulo 
+    main="Distribución de los ocupados por genero,Trabajadores formales por genero",
+    #título 
     col=c("red","blue"), # damos color a los sectores
     labels= paste0(piepercent,"%") )
-legend("topright", c("Mujer","Hombre"), cex=0.8, fill=c(2,4)) # a�adimos la leyenda al gr�fico
+legend("topright", c("Mujer","Hombre"), cex=0.8, fill=c(2,4)) # añadimos la leyenda al gráfico
 #######################################
 #INFORMALIDAD SEGUN EDAD
 
@@ -203,36 +207,232 @@ plot(prop.table(table(Ln_salario)))
 
 
 # Modelo logit
-mod_logit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario, family = "binomial")
+mod_logit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=datos.entrenamiento, family = "binomial")
 mod_logit
 summary(mod_logit)
+###
+#Bondad de ajuste 
+library(DescTools)
+PseudoR2(mod_logit)
+AIC(mod_logit)
+BIC(mod_logit)
 
-anova(mod_logit,test="Chisq")
+
+
+#install.packages("ROCR")
+library(ROCR)
+#Porcentaje de clasificaciones correctas.
+
+# Cálculo de la probabilidad predicha por el modelo con los datos de entrenamiento
+prob.modelo <- predict(mod_logit, newdata = datos.prueba, type = "response")
+
+# Vector de elementos “negativos”
+pred.modelo <- rep("0", length(prob.modelo))
+# Sustitución de “negativos” por “positivos” si la p > 0.5
+pred.modelo[prob.modelo > 0.5] <- "1"
+
+# Matriz de confusión
+tabla.clasif <- table(pred.modelo, datos.prueba$Tam_Empresa)
+tabla.clasif
+
+error1<- 100*sum(tabla.clasif[1,2], tabla.clasif[2,1])/sum(tabla.clasif)
+error1
+
+tcc <- 100 * sum(diag(tabla.clasif))/sum(tabla.clasif)
+tcc
+
+sensibilidad <-100*sum(tabla.clasif[2,2])/sum(tabla.clasif[2,2], tabla.clasif[2,1])
+sensibilidad
+
+Especificidad<- 100*sum(tabla.clasif[1,1])/sum(tabla.clasif[1,2], tabla.clasif[1,1])
+Especificidad
+
+################
+
+#Estadistico devianza
+sum(residuals(mod_logit,type="deviance")^2)
+1 - pchisq(sum(residuals(mod_logit,type="deviance")^2),1)
+#anova(mod_logit,test="Chisq")
+#Estadistico chi cuadrado
 sum(residuals(mod_logit,type="pearson")^2)
+1 - pchisq(sum(residuals(mod_logit,type="pearson")^2),1)
+#Estadisticos de  Hosmer y Lemeshow, junto el de le Cessie y Van Houwelingen.
+#install.packages("MKclass")
+library(MKclass)
+HLgof.test(fit = fitted(mod_logit), obs = as.numeric(as.character(datos.entrenamiento$Tam_Empresa)),
+           X= model.matrix(datos.entrenamiento$Tam_Empresa ~ datos.entrenamiento$Genero_df+
+                             datos.entrenamiento$Edad_df+datos.entrenamiento$Nivel_edu_df+
+                             datos.entrenamiento$Exp+datos.entrenamiento$Ln_salario))
+
+
+##################################
+# Modelo probit
+##################################
+mod_probit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=datos.entrenamiento,family=binomial(link="probit"))
+summary(mod_probit)
+
+#Bondad de ajuste 
+library(DescTools)
+PseudoR2(mod_probit)
+AIC(mod_probit)
+BIC(mod_probit)
+
+#Porcentaje de clasificaciones correctas.
+
+# Cálculo de la probabilidad predicha por el modelo con los datos de entrenamiento
+prob.modelo <- predict(mod_probit, newdata = datos.prueba, type = "response")
+
+# Vector de elementos “Negativos”
+pred.modelo <- rep("0", length(prob.modelo))
+# Sustitución de “negativos” por “positivos” si la p > 0.5
+pred.modelo[prob.modelo > 0.5] <- "1"
+
+#TamEmpresa = Tam_Empresa[1:10706]
+
+# Matriz de confusión
+tabla.clasif <- table(pred.modelo, datos.prueba$Tam_Empresa)
+tabla.clasif
+
+
+error1<- 100*sum(tabla.clasif[1,2], tabla.clasif[2,1])/sum(tabla.clasif)
+error1
+
+tcc <- 100 * sum(diag(tabla.clasif))/sum(tabla.clasif)
+tcc
+
+sensibilidad <-100*sum(tabla.clasif[2,2])/sum(tabla.clasif[2,2], tabla.clasif[2,1])
+sensibilidad
+
+Especificidad<- 100*sum(tabla.clasif[1,1])/sum(tabla.clasif[1,2], tabla.clasif[1,1])
+Especificidad
+
+###############
+
+#Estadistico deviance
+sum(residuals(mod_probit,type="deviance")^2)
+1 - pchisq(sum(residuals(mod_probit,type="deviance")^2),1)
+#anova(mod_logit,test="Chisq")
+#Estadistico chi cuadrado
+sum(residuals(mod_probit,type="pearson")^2)
+1 - pchisq(sum(residuals(mod_probit,type="pearson")^2),1)
+#Estadisticos de  Hosmer y Lemeshow, junto el de le Cessie y Van Houwelingen.
+#install.packages("MKmisc")
+library(MKclass)
+HLgof.test(fit = fitted(mod_probit), obs = as.numeric(as.character(datos.entrenamiento$Tam_Empresa)),
+           X= model.matrix(datos.entrenamiento$Tam_Empresa ~ datos.entrenamiento$Genero_df+
+                             datos.entrenamiento$Edad_df+datos.entrenamiento$Nivel_edu_df+
+                             datos.entrenamiento$Exp+datos.entrenamiento$Ln_salario))
+
+###################################################################################
+library(memisc)
+mtable(mod_logit, mod_probit)
+###################################################################################
+
+#Evaluacion del modelo con los 
+#DATOSDE PRUEBA
+
+# Modelo logit
+mod_logit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=datos.prueba, family = "binomial")
+mod_logit
+summary(mod_logit)
+###
+#Bondad de ajuste 
+library(DescTools)
+PseudoR2(mod_logit)
+AIC(mod_logit)
+BIC(mod_logit)
+
+#Porcentaje de clasificaciones correctas.
+
+# Cálculo de la probabilidad predicha por el modelo con los datos de test
+prob.modelo <- predict(mod_logit, newdata = datos.prueba, type = "response")
+
+# Vector de elementos “Negativos”
+pred.modelo <- rep("0", length(prob.modelo))
+# Sustitución de “negativos” por “positivos” si la p > 0.5
+pred.modelo[prob.modelo > 0.5] <- "1"
+
+TamEmpresa = Tam_Empresa[10707:15295]
+
+# Matriz de confusión
+tabla.clasif <- table(pred.modelo, TamEmpresa)
+tabla.clasif
+
+
+error1<- 100*sum(tabla.clasif[1,2], tabla.clasif[2,1])/sum(tabla.clasif)
+error1
+
+tcc <- 100 * sum(diag(tabla.clasif))/sum(tabla.clasif)
+tcc
+
+sensibilidad <-100*sum(tabla.clasif[2,2])/sum(tabla.clasif[2,2], tabla.clasif[2,1])
+sensibilidad
+
+Especificidad<- 100*sum(tabla.clasif[1,1])/sum(tabla.clasif[1,2], tabla.clasif[1,1])
+Especificidad
+
+##################################
 
 
 # Modelo probit
-mod_probit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,family=binomial(link="probit"))
+mod_probit <- glm(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=datos.prueba,family=binomial(link="probit"))
 summary(mod_probit)
-sum(residuals(mod_logit,type="deviance")^2)
-1 - pchisq(sum(residuals(mod_logit,type="pearson")^2),1)
-library(DescTools)
-PseudoR2(mod_logit)
-PseudoR2(mod_probit)
-#
-mod_logit$coefficients
 
-#seleccion del modelo
-#install.packages("memisc") 
+#Bondad de ajuste 
+library(DescTools)
+PseudoR2(mod_probit)
+AIC(mod_probit)
+BIC(mod_probit)
+
+#Porcentaje de clasificaciones correctas.
+
+# Cálculo de la probabilidad predicha por el modelo con los datos de test
+prob.modelo <- predict(mod_probit, newdata = datos.prueba, type = "response")
+
+# Vector de elementos “Negativos”
+pred.modelo <- rep("0", length(prob.modelo))
+# Sustitución de “negativos” por “positivos” si la p > 0.5
+pred.modelo[prob.modelo > 0.5] <- "1"
+
+TamEmpresa = Tam_Empresa[10707:15295]
+
+# Matriz de confusión
+tabla.clasif <- table(pred.modelo, TamEmpresa)
+tabla.clasif
+
+error1<- 100*sum(tabla.clasif[1,2], tabla.clasif[2,1])/sum(tabla.clasif)
+error1
+
+tcc <- 100 * sum(diag(tabla.clasif))/sum(tabla.clasif)
+tcc
+
+sensibilidad <-100*sum(tabla.clasif[2,2])/sum(tabla.clasif[2,2], tabla.clasif[2,1])
+sensibilidad
+
+Especificidad<- 100*sum(tabla.clasif[1,1])/sum(tabla.clasif[1,2], tabla.clasif[1,1])
+Especificidad
+################
+
+
+#Estadistico deviance
+sum(residuals(mod_probit,type="deviance")^2)
+1 - pchisq(sum(residuals(mod_probit,type="deviance")^2),1)
+#anova(mod_logit,test="Chisq")
+#Estadistico chi cuadrado
+sum(residuals(mod_probit,type="pearson")^2)
+1 - pchisq(sum(residuals(mod_probit,type="pearson")^2),1)
+#Estadisticos de  Hosmer y Lemeshow, junto el de le Cessie y Van Houwelingen.
+#install.packages("MKmisc")
+library(MKclass)
+HLgof.test(fit = fitted(mod_probit), obs = as.numeric(as.character(datos.prueba$Tam_Empresa)),
+           X= model.matrix(datos.prueba$Tam_Empresa ~ datos.prueba$Genero_df+
+                             datos.prueba$Edad_df+datos.prueba$Nivel_edu_df+
+                             datos.prueba$Exp+datos.prueba$Ln_salario))
+
+
+
+
+###########################################################################################
 library(memisc)
 mtable(mod_logit, mod_probit)
-#efectos marginales
-logitvec <- mean(dlogis(predict(mod_logit, type = "link")))
-logitvec*coef(mod_logit)
-install.packages("mfx")
-#Efectos marginales
-library(mfx)
-round(mfx::logitmfx(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=DF1)$mfxest, 6)
-round(mfx::probitmfx(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=DF1)$mfxest, 6)
-
-
+###########################################################################################
