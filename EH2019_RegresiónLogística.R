@@ -1,9 +1,9 @@
- #================================================
+#================================================
   # Analizando las Encuestas de Hogares 2019
   # ================================================
 
 # 1) Instalacion de paquetes 
-install.packages(c("tidyverse","psych","haven", "PerformanceAnalytics"))
+#install.packages(c("tidyverse","psych","haven", "PerformanceAnalytics"))
 library(tidyverse)
 library(haven) 
 library(psych)
@@ -44,6 +44,7 @@ y<-ifelse(s06b_21b<3,1,0)
 y
 table(y)
 Salario<-ylab
+Salario
 edu<-aestudio
 Nivel_Edu <- niv_ed_g
 Edad <- s02a_03
@@ -58,9 +59,9 @@ Tam_Empresa
 Salario_df<-DF$Salario
 Horas_df<-DF$Horas
 Edad_df<-DF$Edad
-EDAD_df <- case_when(Edad_df %in% c(12:14) ~ "12 a 14",      #<<
-                     Edad_df %in% c(15:18) ~"15 a 18",       #<<
-                     Edad_df %in% c(19:24) ~ "19 a 24",      #<<
+EDAD_df <- case_when(Edad_df %in% c(11:14) ~ "12 a 14",      #<<
+                     Edad_df %in% c(15:19) ~"15 a 18",       #<<
+                     Edad_df %in% c(20:24) ~ "19 a 24",      #<<
                      Edad_df %in% c(25:29) ~ "25 a 29",  #<<
                      Edad_df %in% c(30:34) ~ "30 a 34",
                      Edad_df %in% c(35:39) ~ "35 a 39",
@@ -82,7 +83,6 @@ Nivel_EDU<-case_when(Nivel_edu_df %in% c(0)~ "Sin nivel",
 Exp <- Edad_df-edu_df-6
 Exp2 <- Exp*Exp
 
-
 #Data frame
 Data1 <- data.frame(Tam_Empresa,Genero_df,Edad_df,Nivel_edu_df,Exp,Ln_salario)
 DF1 <- na.omit(Data1) 
@@ -95,12 +95,18 @@ datos.prueba<-DF1[10707:15295,]
 #analisis exploratorio
 
 #analisis univariado
+table(Tam_Empresa)
 prop.table(table(Tam_Empresa))
 prop.table(table(Nivel_edu_df))
 
 #analisis vibariado
 a<-table(Genero_df,Tam_Empresa)
 a
+table(Nivel_edu_df)
+table(a,Nivel_edu_df)
+
+prop.table(table(Nivel_edu_df,Tam_Empresa),1)
+
 summary(a)
 prop.table(a)
 w<-prop.table(a,2)
@@ -126,7 +132,7 @@ prop.table(Tam_Empresa)
 
 piepercent <- round(w[,2]*100)
 pie(w[,2],
-    main="Distribución de los ocupados por genero,Trabajadores formales por genero",
+    main="Distribución de los ocupados por genero,Trabajadores informales por genero",
     #título 
     col=c("mistyrose","lightblue"), # damos color a los sectores
     labels=paste0(piepercent,"%")) 
@@ -146,36 +152,15 @@ legend("topright", c("Mujer","Hombre"), cex=0.8, fill=c(2,4)) # añadimos la ley
 
 table(EDAD_df)
 
-prop.table(table(EDAD_df,Tam_Empresa),2)
-hist(prop.table(table(EDAD_df,Tam_Empresa),1))
-
-######################################
-z<-prop.table(table(Tam_Empresa,EDAD_df),1)
-z
-barplot(z[2,])
-######################################
-#Tasa de informalidad por nivel educativo y sexo
-table(Nivel_edu_df,Genero_df,Tam_Empresa)
-prop.table(table(Nivel_edu_df,Genero_df,Tam_Empresa),2)
-barplot(prop.table(table(Nivel_edu_df,Genero_df,Tam_Empresa)))
-
-hist(EDAD_df)
-table(EDAD_df)
-Edad_df
 prop.table(table(EDAD_df,Tam_Empresa),1)
-hist(prop.table(table(EDAD_df,Tam_Empresa),1))
+s<-prop.table(table(EDAD_df,Tam_Empresa),1)
+barplot(s[,2])
 
-prop.table(table(Edad_df,Tam_Empresa))
-hist(prop.table(table(Edad_df)))
-
-histPercent <- function(Nivel_edu_df) {
-  H <- hist(prop.table(table(Nivel_edu_df)), plot = FALSE)
-  H
-  labs <- paste(round(H, "%", sep=""))
-  plot(H, freq = FALSE, labels = labs, ylim=c(0, 1.08*max(H)))
-}
-
-histPercent(islands, col="red")
+######################################
+#Tasa de informalidad por nivel educativo 
+table(Nivel_edu_df,Tam_Empresa)
+e<-prop.table(table(Nivel_edu_df,Tam_Empresa),1)
+barplot(e[,1])
 
 #############################################
 #INFORMALIDAD SEGUN NIVEL DE INGRESOS
@@ -194,12 +179,7 @@ g+geom_bar(position="dodge") +
 
 
 #############################################
-
-table(Ln_salario)
-
-prop.table(table(Ln_salario))
-plot(prop.table(table(Ln_salario)))
-############################################
+#############################################
 
 
 
@@ -226,9 +206,9 @@ library(ROCR)
 # Cálculo de la probabilidad predicha por el modelo con los datos de entrenamiento
 prob.modelo <- predict(mod_logit, newdata = datos.prueba, type = "response")
 
-# Vector de elementos “negativos”
+# Vector de elementos "negativos"
 pred.modelo <- rep("0", length(prob.modelo))
-# Sustitución de “negativos” por “positivos” si la p > 0.5
+# Sustitución de "negativos" por "positivos" si la p > 0.5
 pred.modelo[prob.modelo > 0.5] <- "1"
 
 # Matriz de confusión
@@ -282,9 +262,9 @@ BIC(mod_probit)
 # Cálculo de la probabilidad predicha por el modelo con los datos de entrenamiento
 prob.modelo <- predict(mod_probit, newdata = datos.prueba, type = "response")
 
-# Vector de elementos “Negativos”
+# Vector de elementos "Negativos"
 pred.modelo <- rep("0", length(prob.modelo))
-# Sustitución de “negativos” por “positivos” si la p > 0.5
+# Sustitución de "negativos" por "positivos" si la p > 0.5
 pred.modelo[prob.modelo > 0.5] <- "1"
 
 #TamEmpresa = Tam_Empresa[1:10706]
@@ -347,9 +327,9 @@ BIC(mod_logit)
 # Cálculo de la probabilidad predicha por el modelo con los datos de test
 prob.modelo <- predict(mod_logit, newdata = datos.prueba, type = "response")
 
-# Vector de elementos “Negativos”
+# Vector de elementos "Negativos"
 pred.modelo <- rep("0", length(prob.modelo))
-# Sustitución de “negativos” por “positivos” si la p > 0.5
+# Sustitución de "negativos" por "positivos" si la p > 0.5
 pred.modelo[prob.modelo > 0.5] <- "1"
 
 TamEmpresa = Tam_Empresa[10707:15295]
@@ -389,9 +369,9 @@ BIC(mod_probit)
 # Cálculo de la probabilidad predicha por el modelo con los datos de test
 prob.modelo <- predict(mod_probit, newdata = datos.prueba, type = "response")
 
-# Vector de elementos “Negativos”
+# Vector de elementos "Negativos"
 pred.modelo <- rep("0", length(prob.modelo))
-# Sustitución de “negativos” por “positivos” si la p > 0.5
+# Sustitución de "negativos" por "positivos" si la p > 0.5
 pred.modelo[prob.modelo > 0.5] <- "1"
 
 TamEmpresa = Tam_Empresa[10707:15295]
@@ -434,5 +414,82 @@ HLgof.test(fit = fitted(mod_probit), obs = as.numeric(as.character(datos.prueba$
 
 ###########################################################################################
 library(memisc)
-mtable(mod_logit, mod_probit)
+mtable(mod_logit,mod_probit)
 ###########################################################################################
+
+
+
+#seleccion del modelo
+#install.packages("memisc") 
+#install.packages("mfx")
+library(mfx)
+library(memisc)
+
+mtable(mod_logit, mod_probit)
+#efectos marginales
+logitvec <- mean(dlogis(predict(mod_logit, type = "link")))
+logitvec*coef(mod_logit)
+
+
+#Efectos marginales
+
+round(mfx::logitmfx(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=datos.prueba)$mfxest, 6)
+#round(mfx::probitmfx(Tam_Empresa~Genero_df+Edad_df+Nivel_edu_df+Exp+Ln_salario,data=DF1)$mfxest, 6)
+#PRUEBA DE HIPOTESIS
+
+t.test( Tam_Empresa,Genero_df, # dos muestras 
+        alternative = "t", # contraste bilateral 
+        paired = FALSE, # muestras independientes
+        var.equal = TRUE )
+
+t.test( Tam_Empresa,Edad_df, # dos muestras 
+        alternative = "two.sided", # contraste bilateral 
+        paired = FALSE, # muestras independientes
+        var.equal = TRUE )
+t.test( Tam_Empresa,Nivel_edu_df, # dos muestras 
+        alternative = "two.sided", # contraste bilateral 
+        paired = FALSE, # muestras independientes
+        var.equal = TRUE )
+t.test( Tam_Empresa,Exp, # dos muestras 
+        alternative = "t", # contraste bilateral 
+        paired = FALSE, # muestras independientes
+        var.equal = TRUE )
+
+t.test( Tam_Empresa,Ln_salario, # dos muestras 
+        alternative = "t", # contraste bilateral 
+        paired = FALSE, # muestras independientes
+        var.equal = TRUE )
+cor.test(Tam_Empresa,Genero_df)
+
+cor.test(Tam_Empresa,Edad_df)
+
+cor.test(Tam_Empresa,Nivel_edu_df)
+
+cor.test(Tam_Empresa,Exp)
+
+cor.test(Tam_Empresa,Ln_salario)
+
+cor.test(Tam_Empresa)
+
+#Prueba de correlacion de distancia
+
+#install.packages("energy")
+library(energy)
+memory.limit(size=2500)
+x<-Tam_Empresa[10707:15295]
+x1<-Genero_df[10707:15295]
+x2<-Edad_df[10707:15295]
+x3<-Nivel_edu_df[10707:15295]
+x4<-Exp[10707:15295]
+x5<-Ln_salario[10707:15295]
+df2<-data.frame(x1,x2,x3,x4,x5)
+
+dcor.test(x,x1,R=10000)
+dcor.test(x,x2,R=10000)
+dcor.test(x,x3,R=10000)
+dcor.test(x,x4,R=10000)
+dcor.test(x,x5,R=10000)
+
+dcor.test(x,df2,R=10000)
+
+
