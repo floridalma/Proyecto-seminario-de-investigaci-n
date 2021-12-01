@@ -1,4 +1,4 @@
-#================================================
+ #================================================
   # Analizando las Encuestas de Hogares 2019
   # ================================================
 
@@ -73,7 +73,7 @@ EDAD_df <- case_when(Edad_df %in% c(11:14) ~ "12 a 14",      #<<
                      Edad_df %in% c(65:100) ~ "65 y mas")#<<
 edu_df<-DF$edu
 Genero_df<-DF$Genero
-Ln_salario <-log(Salario_df)-log(Horas_df*4)
+Log_Ingreso <-log(Salario_df)-log(Horas_df*4)
 Nivel_edu_df<-DF$Nivel_Edu
 Nivel_EDU<-case_when(Nivel_edu_df %in% c(0)~ "Sin nivel",
                      Nivel_edu_df %in% c(1)~ "Primaria",
@@ -84,7 +84,7 @@ Exp <- Edad_df-edu_df-6
 Exp2 <- Exp*Exp
 
 #Data frame
-Data1 <- data.frame(Tam_Empresa,Genero_df,Edad_df,Nivel_edu_df,Exp,Ln_salario)
+Data1 <- data.frame(Tam_Empresa,Genero_df,Edad_df,Nivel_edu_df,Exp,Log_Ingreso)
 DF1 <- na.omit(Data1) 
 attach(DF1)
 DF1
@@ -103,7 +103,7 @@ prop.table(table(Nivel_edu_df))
 a<-table(Genero_df,Tam_Empresa)
 a
 table(Nivel_edu_df)
-table(a,Nivel_edu_df)
+#table(a,Nivel_edu_df)
 
 prop.table(table(Nivel_edu_df,Tam_Empresa),1)
 
@@ -161,21 +161,6 @@ barplot(s[,2])
 table(Nivel_edu_df,Tam_Empresa)
 e<-prop.table(table(Nivel_edu_df,Tam_Empresa),1)
 barplot(e[,1])
-
-#############################################
-#INFORMALIDAD SEGUN NIVEL DE INGRESOS
-
-table(SALARIO_df,Tam_Empresa)
-X<-prop.table(table(SALARIO_df,Tam_Empresa),2)
-X
-
-library(scales)
-g<- ggplot(Tam_Empresa, aes(SALARIO_df, fill=Trabajadores) ) + 
-  labs(title = "Distribucio'n de los ocupados segun nivel de ingresos")+ylab("") +
-  theme(plot.title = element_text(size = rel(2), colour = "blue")) 
-g+geom_bar(position="dodge") + 
-  scale_fill_manual(values = alpha(c("orange", "blue"), 1)) +
-  theme(axis.title.x = element_text(face="bold", size=10))
 
 
 #############################################
