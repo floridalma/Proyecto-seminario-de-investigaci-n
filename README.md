@@ -1,1 +1,1 @@
-# Proyecto-seminario-de-investigaci-n
+# Proyecto-seminario
